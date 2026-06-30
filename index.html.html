@@ -11,53 +11,60 @@
             background-color: #f5f7fa;
             color: #333;
             margin: 0;
-            padding: 20px;
+            padding: 10px; /* スマホ用に余白を少し狭く */
         }
         .container {
             max-width: 900px;
             margin: 0 auto;
             background: #fff;
-            padding: 30px;
+            padding: 15px; /* スマホ用に内側の余白を調整 */
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         h1 {
             text-align: center;
             color: #4a5568;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            font-size: 20px; /* スマホで見やすい文字サイズ */
         }
         .chart-container {
             position: relative;
-            margin: 0 auto 30px auto;
-            height: 380px;
-            width: 380px;
+            margin: 0 auto 20px auto;
+            height: 280px; /* スマホの画面からはみ出さないサイズに調整 */
+            width: 280px;
         }
+        /* 横スクロールできるようにしてスマホでも表が崩れないように */
         .table-wrapper {
             overflow-x: auto;
             margin-bottom: 25px;
+            -webkit-overflow-scrolling: touch; /* スムーズなスクロール */
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
         }
         .result-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 600px;
+            min-width: 450px; /* 最低限の幅を確保 */
         }
         .result-table th, .result-table td {
             border: 1px solid #e2e8f0;
-            padding: 10px;
+            padding: 8px 4px; /* スマホ用にパディングを調整 */
             text-align: center;
         }
         .result-table th {
             background-color: #edf2f7;
             color: #4a5568;
+            font-size: 13px;
         }
-        /* 入力欄スタイル */
+        /* 入力欄スタイル：スマホでタップしやすく */
         input {
-            padding: 6px;
+            padding: 8px 4px; /* 指でタップしやすい高さに変形 */
             font-size: 14px;
             border: 1px solid #cbd5e0;
             border-radius: 4px;
             text-align: center;
             box-sizing: border-box;
+            -webkit-appearance: none; /* iOS特有のスタイルをリセット */
         }
         input:focus {
             border-color: #3182ce;
@@ -69,11 +76,11 @@
             font-weight: bold;
         }
         input[type="text"].test-title {
-            width: 80px;
+            width: 75px;
             font-weight: bold;
         }
         input[type="number"] {
-            width: 60px;
+            width: 55px;
         }
         /* ボタンのスタイル */
         .btn-container {
@@ -83,22 +90,24 @@
             margin-bottom: 20px;
         }
         button {
-            padding: 10px 20px;
+            padding: 12px 24px; /* スマホで押しやすいサイズに少し大きく */
             font-size: 14px;
             font-weight: bold;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             transition: background 0.2s;
+            -webkit-appearance: none;
         }
         .btn-add { background-color: #48bb78; color: white; }
         .btn-add:hover { background-color: #38a169; }
-        .btn-delete { background-color: #e53e3e; color: white; padding: 4px 8px; font-size: 12px; }
+        .btn-delete { background-color: #e53e3e; color: white; padding: 6px 10px; font-size: 12px; }
         .btn-delete:hover { background-color: #c53030; }
         
         .total-row {
             font-weight: bold;
             background-color: #f7fafc;
+            font-size: 13px;
         }
     </style>
 </head>
@@ -120,7 +129,7 @@
             <thead>
                 <tr id="headerRow">
                     <th>教科名</th>
-                    </tr>
+                </tr>
             </thead>
             <tbody id="tableBody">
                 <tr><td><input type="text" class="subject" value="国語"></td></tr>
@@ -132,31 +141,29 @@
             <tfoot>
                 <tr id="totalRow" class="total-row">
                     <td>合計</td>
-                    </tr>
+                </tr>
             </tfoot>
         </table>
     </div>
 </div>
 
 <script>
-    // グラフの鮮やかな色リスト（追加されるたびに順番に適用されます）
     const colorPalette = [
-        { bg: 'rgba(66, 153, 225, 0.2)', border: 'rgba(66, 153, 225, 1)' }, // 青
-        { bg: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 1)' }, // オレンジ
-        { bg: 'rgba(159, 122, 234, 0.2)', border: 'rgba(159, 122, 234, 1)' }, // 紫
-        { bg: 'rgba(241, 76, 76, 0.2)', border: 'rgba(241, 76, 76, 1)' },    // 赤
-        { bg: 'rgba(72, 187, 120, 0.2)', border: 'rgba(72, 187, 120, 1)' }   // 緑
+        { bg: 'rgba(66, 153, 225, 0.2)', border: 'rgba(66, 153, 225, 1)' },
+        { bg: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 1)' },
+        { bg: 'rgba(159, 122, 234, 0.2)', border: 'rgba(159, 122, 234, 1)' },
+        { bg: 'rgba(241, 76, 76, 0.2)', border: 'rgba(241, 76, 76, 1)' },
+        { bg: 'rgba(72, 187, 120, 0.2)', border: 'rgba(72, 187, 120, 1)' }
     ];
 
     let testCount = 0;
 
-    // グラフの初期化
     const ctx = document.getElementById('radarChart').getContext('2d');
     const radarChart = new Chart(ctx, {
         type: 'radar',
         data: {
             labels: ['国語', '数学', '英語', '理科', '社会'],
-            datasets: [] // 最初は空っぽ
+            datasets: []
         },
         options: {
             responsive: true,
@@ -165,12 +172,10 @@
         }
     });
 
-    // 新しいテストデータ列を追加する関数
     function addTestData() {
         testCount++;
         const color = colorPalette[(testCount - 1) % colorPalette.length];
 
-        // 1. ヘッダーにテスト名入力欄と削除ボタンを追加
         const headerRow = document.getElementById('headerRow');
         const th = document.createElement('th');
         th.className = `col-${testCount}`;
@@ -180,7 +185,6 @@
         `;
         headerRow.appendChild(th);
 
-        // 2. 各教科の行に点数入力欄を追加
         const rows = document.querySelectorAll('#tableBody tr');
         rows.forEach(row => {
             const td = document.createElement('td');
@@ -189,38 +193,31 @@
             row.appendChild(td);
         });
 
-        // 3. 合計行に合計表示用のセルを追加
         const totalRow = document.getElementById('totalRow');
         const totalTd = document.createElement('td');
         totalTd.className = `col-${testCount}`;
-        totalTd.innerHTML = `<span id="total-${testCount}">0</span> / 500`;
+        totalTd.innerHTML = `<span id="total-${testCount}">0</span>`;
         totalRow.appendChild(totalTd);
 
-        // 4. グラフにデータセットを追加
         radarChart.data.datasets.push({
             label: `テスト${testCount}`,
             data: [],
             backgroundColor: color.bg,
             borderColor: color.border,
             borderWidth: 2,
-            id: testCount // 識別用ID
+            id: testCount
         });
 
         updateChartAndTotals();
     }
 
-    // 列を削除する関数
     function deleteColumn(id) {
-        // 画面上のセルの削除
         document.querySelectorAll(`.col-${id}`).forEach(el => el.remove());
-        // グラフデータの削除
         radarChart.data.datasets = radarChart.data.datasets.filter(ds => ds.id !== id);
         updateChartAndTotals();
     }
 
-    // 全体の更新処理
     function updateChartAndTotals() {
-        // 教科名の更新
         const subjectInputs = document.querySelectorAll('.subject');
         const subjects = [];
         subjectInputs.forEach(input => {
@@ -228,7 +225,6 @@
         });
         radarChart.data.labels = subjects;
 
-        // 各データ列の数値を集計して反映
         radarChart.data.datasets.forEach(dataset => {
             const id = dataset.id;
             const titleInput = document.querySelector(`#headerRow .col-${id} .test-title`);
@@ -257,21 +253,17 @@
         radarChart.update();
     }
 
-    // 教科名の入力欄にもリアルタイム反映のイベントをつける
     document.getElementById('tableBody').addEventListener('input', (e) => {
         if (e.target.classList.contains('subject')) {
             updateChartAndTotals();
         }
     });
 
-    // 最初は2つデータがある状態にする
     addTestData();
     addTestData();
-    // 最初の点数をちょっとバラけさせるサンプルの処理
     document.querySelector('.score-1').value = 85;
     document.querySelectorAll('.score-2').forEach((el, i) => el.value = [70, 85, 75, 90, 65][i]);
     updateChartAndTotals();
-
 </script>
 
 </body>
