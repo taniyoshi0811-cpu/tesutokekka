@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マルチテスト結果入力 ＆ レーダーチャート</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            position: relative;
+            margin: 0 auto 30px auto;
+            height: 380px;
+            width: 380px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 25px;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        .result-table th, .result-table td {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            text-align: center;
+        }
+        .result-table th {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+        /* 入力欄スタイル */
+        input {
+            padding: 6px;
+            font-size: 14px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        input:focus {
+            border-color: #3182ce;
+            outline: none;
+            background-color: #f7fafc;
+        }
+        input[type="text"].subject {
+            width: 90%;
+            font-weight: bold;
+        }
+        input[type="text"].test-title {
+            width: 80px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 60px;
+        }
+        /* ボタンのスタイル */
+        .btn-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-add { background-color: #48bb78; color: white; }
+        .btn-add:hover { background-color: #38a169; }
+        .btn-delete { background-color: #e53e3e; color: white; padding: 4px 8px; font-size: 12px; }
+        .btn-delete:hover { background-color: #c53030; }
+        
+        .total-row {
+            font-weight: bold;
+            background-color: #f7fafc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>テスト結果 マルチ入力</h1>
+    
+    <div class="chart-container">
+        <canvas id="radarChart"></canvas>
+    </div>
+
+    <div class="btn-container">
+        <button class="btn-add" onclick="addTestData()">＋ データを追加</button>
+    </div>
+    
+    <div class="table-wrapper">
+        <table class="result-table" id="resultTable">
+            <thead>
+                <tr id="headerRow">
+                    <th>教科名</th>
+                    </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td><input type="text" class="subject" value="国語"></td></tr>
+                <tr><td><input type="text" class="subject" value="数学"></td></tr>
+                <tr><td><input type="text" class="subject" value="英語"></td></tr>
+                <tr><td><input type="text" class="subject" value="理科"></td></tr>
+                <tr><td><input type="text" class="subject" value="社会"></td></tr>
+            </tbody>
+            <tfoot>
+                <tr id="totalRow" class="total-row">
+                    <td>合計</td>
+                    </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<script>
+    // グラフの鮮やかな色リスト（追加されるたびに順番に適用されます）
+    const colorPalette = [
+        { bg: 'rgba(66, 153, 225, 0.2)', border: 'rgba(66, 153, 225, 1)' }, // 青
+        { bg: 'rgba(245, 158, 11, 0.2)', border: 'rgba(245, 158, 11, 1)' }, // オレンジ
+        { bg: 'rgba(159, 122, 234, 0.2)', border: 'rgba(159, 122, 234, 1)' }, // 紫
+        { bg: 'rgba(241, 76, 76, 0.2)', border: 'rgba(241, 76, 76, 1)' },    // 赤
+        { bg: 'rgba(72, 187, 120, 0.2)', border: 'rgba(72, 187, 120, 1)' }   // 緑
+    ];
+
+    let testCount = 0;
+
+    // グラフの初期化
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    const radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['国語', '数学', '英語', '理科', '社会'],
+            datasets: [] // 最初は空っぽ
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { r: { suggestedMin: 0, suggestedMax: 100 } }
+        }
+    });
+
+    // 新しいテストデータ列を追加する関数
+    function addTestData() {
+        testCount++;
+        const color = colorPalette[(testCount - 1) % colorPalette.length];
+
+        // 1. ヘッダーにテスト名入力欄と削除ボタンを追加
+        const headerRow = document.getElementById('headerRow');
+        const th = document.createElement('th');
+        th.className = `col-${testCount}`;
+        th.innerHTML = `
+            <input type="text" class="test-title" value="テスト${testCount}" oninput="updateChartAndTotals()"><br>
+            <button class="btn-delete" onclick="deleteColumn(${testCount})" style="margin-top:5px;">削除</button>
+        `;
+        headerRow.appendChild(th);
+
+        // 2. 各教科の行に点数入力欄を追加
+        const rows = document.querySelectorAll('#tableBody tr');
+        rows.forEach(row => {
+            const td = document.createElement('td');
+            td.className = `col-${testCount}`;
+            td.innerHTML = `<input type="number" class="score-${testCount}" value="80" min="0" max="100" oninput="updateChartAndTotals()">`;
+            row.appendChild(td);
+        });
+
+        // 3. 合計行に合計表示用のセルを追加
+        const totalRow = document.getElementById('totalRow');
+        const totalTd = document.createElement('td');
+        totalTd.className = `col-${testCount}`;
+        totalTd.innerHTML = `<span id="total-${testCount}">0</span> / 500`;
+        totalRow.appendChild(totalTd);
+
+        // 4. グラフにデータセットを追加
+        radarChart.data.datasets.push({
+            label: `テスト${testCount}`,
+            data: [],
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 2,
+            id: testCount // 識別用ID
+        });
+
+        updateChartAndTotals();
+    }
+
+    // 列を削除する関数
+    function deleteColumn(id) {
+        // 画面上のセルの削除
+        document.querySelectorAll(`.col-${id}`).forEach(el => el.remove());
+        // グラフデータの削除
+        radarChart.data.datasets = radarChart.data.datasets.filter(ds => ds.id !== id);
+        updateChartAndTotals();
+    }
+
+    // 全体の更新処理
+    function updateChartAndTotals() {
+        // 教科名の更新
+        const subjectInputs = document.querySelectorAll('.subject');
+        const subjects = [];
+        subjectInputs.forEach(input => {
+            subjects.push(input.value || '未入力');
+        });
+        radarChart.data.labels = subjects;
+
+        // 各データ列の数値を集計して反映
+        radarChart.data.datasets.forEach(dataset => {
+            const id = dataset.id;
+            const titleInput = document.querySelector(`#headerRow .col-${id} .test-title`);
+            if (titleInput) {
+                dataset.label = titleInput.value || `テスト${id}`;
+            }
+
+            const scoreInputs = document.querySelectorAll(`.score-${id}`);
+            const scores = [];
+            let total = 0;
+
+            scoreInputs.forEach(input => {
+                const val = parseInt(input.value) || 0;
+                scores.push(val);
+                total += val;
+            });
+
+            dataset.data = scores;
+
+            const totalSpan = document.getElementById(`total-${id}`);
+            if (totalSpan) {
+                totalSpan.textContent = total;
+            }
+        });
+
+        radarChart.update();
+    }
+
+    // 教科名の入力欄にもリアルタイム反映のイベントをつける
+    document.getElementById('tableBody').addEventListener('input', (e) => {
+        if (e.target.classList.contains('subject')) {
+            updateChartAndTotals();
+        }
+    });
+
+    // 最初は2つデータがある状態にする
+    addTestData();
+    addTestData();
+    // 最初の点数をちょっとバラけさせるサンプルの処理
+    document.querySelector('.score-1').value = 85;
+    document.querySelectorAll('.score-2').forEach((el, i) => el.value = [70, 85, 75, 90, 65][i]);
+    updateChartAndTotals();
+
+</script>
+
+</body>
+</html>
