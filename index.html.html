@@ -27,6 +27,40 @@
             margin-bottom: 20px;
             font-size: 20px;
         }
+        
+        /* 画面切り替えタブのスタイル */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #edf2f7;
+            color: #4a5568;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background-color: #3182ce;
+            color: white;
+        }
+
+        /* 各画面の表示・非表示制御 */
+        .page-content {
+            display: none;
+        }
+        .page-content.active {
+            display: block;
+        }
+
         .chart-container {
             position: relative;
             margin: 0 auto 20px auto;
@@ -121,39 +155,43 @@
 <body>
 
 <div class="container">
-    <h1>テスト結果 マルチ入力</h1>
+    <h1>テスト結果管理</h1>
     
-    <div class="chart-container">
-        <canvas id="radarChart"></canvas>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchPage('inputPage')">✍️ 入力画面</button>
+        <button class="tab-btn" onclick="switchPage('chartPage')">📊 レーダーチャート</button>
     </div>
 
-    <div class="btn-container">
-        <button class="btn-add" onclick="addTestData()">＋ データを追加</button>
-    </div>
-    
-    <div class="table-wrapper">
-        <table class="result-table" id="resultTable">
-            <thead>
-                <tr id="headerRow">
-                    <th>教科名</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr class="subject-row"><td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="国語"></div></td></tr>
-                <tr class="subject-row"><td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="数学"></div></td></tr>
-                <tr class="subject-row"><td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="英語"></div></td></tr>
-                <tr class="subject-row"><td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="理科"></div></td></tr>
-                <tr class="subject-row"><td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="社会"></div></td></tr>
-            </tbody>
-            <tfoot>
-                <tr id="totalRow" class="total-row">
-                    <td>合計</td>
-                </tr>
-            </tfoot>
-        </table>
+    <div id="inputPage" class="page-content active">
+        <div class="btn-container">
+            <button class="btn-add" onclick="addTestData()">＋ データを追加</button>
+        </div>
+        
+        <div class="table-wrapper">
+            <table class="result-table" id="resultTable">
+                <thead>
+                    <tr id="headerRow">
+                        <th>教科名</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+                <tfoot>
+                    <tr id="totalRow" class="total-row">
+                        <td>合計</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <button class="btn-subject-add" onclick="addSubjectRow()">＋ 教科を追加</button>
     </div>
 
-    <button class="btn-subject-add" onclick="addSubjectRow()">＋ 教科を追加</button>
+    <div id="chartPage" class="page-content">
+        <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -166,8 +204,9 @@
     ];
 
     let testCount = 0;
-    let activeTestIds = []; // 現在存在するテストのIDを追跡
+    let activeTestIds = [];
 
+    // グラフの初期化
     const ctx = document.getElementById('radarChart').getContext('2d');
     const radarChart = new Chart(ctx, {
         type: 'radar',
@@ -182,12 +221,136 @@
         }
     });
 
-    // 新しいテストデータ列を追加する関数
-    function addTestData() {
+    // 画面切り替え関数
+    function switchPage(pageId) {
+        // ボタンのactive切り替え
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (pageId === 'inputPage') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        if (pageId === 'chartPage') document.querySelectorAll('.tab-btn')[1].classList.add('active');
+
+        // コンテンツの切り替え
+        document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+
+        // グラフ画面に移ったときは最新データでグラフを更新
+        if (pageId === 'chartPage') {
+            updateChartAndTotals(false);
+        }
+    }
+
+    function saveToLocalStorage() {
+        const dataToSave = {
+            activeTestIds: activeTestIds,
+            testCount: testCount,
+            testTitles: {},
+            subjects: [],
+            scores: {}
+        };
+
+        activeTestIds.forEach(id => {
+            const titleInput = document.querySelector(`#headerRow .col-${id} .test-title`);
+            dataToSave.testTitles[id] = titleInput ? titleInput.value : `テスト${id}`;
+        });
+
+        const rows = document.querySelectorAll('#tableBody tr.subject-row');
+        rows.forEach((row, rowIndex) => {
+            const subjInput = row.querySelector('.subject');
+            dataToSave.subjects.push(subjInput ? subjInput.value : '');
+
+            activeTestIds.forEach(id => {
+                const scoreInput = row.querySelector(`.score-${id}`);
+                if (!dataToSave.scores[id]) dataToSave.scores[id] = [];
+                dataToSave.scores[id].push(scoreInput ? (parseInt(scoreInput.value) || 0) : 80);
+            });
+        });
+
+        localStorage.setItem('radarChartTestData', JSON.stringify(dataToSave));
+    }
+
+    function loadFromLocalStorage() {
+        const savedData = localStorage.getItem('radarChartTestData');
+        if (!savedData) {
+            initDefaultData();
+            return;
+        }
+
+        try {
+            const data = JSON.parse(savedData);
+            testCount = data.testCount || 0;
+            activeTestIds = data.activeTestIds || [];
+
+            const headerRow = document.getElementById('headerRow');
+            activeTestIds.forEach((id, index) => {
+                const th = document.createElement('th');
+                th.className = `col-${id}`;
+                th.innerHTML = `
+                    <input type="text" class="test-title" value="${data.testTitles[id] || 'テスト'+id}" oninput="updateChartAndTotals()"><br>
+                    <button class="btn-delete" onclick="deleteColumn(${id})" style="margin-top:5px;">削除</button>
+                `;
+                headerRow.appendChild(th);
+            });
+
+            const tbody = document.getElementById('tableBody');
+            data.subjects.forEach((subj, rowIndex) => {
+                const tr = document.createElement('tr');
+                tr.className = "subject-row";
+
+                let html = `<td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="${subj}"></div></td>`;
+                
+                activeTestIds.forEach(id => {
+                    const val = (data.scores[id] && data.scores[id][rowIndex] !== undefined) ? data.scores[id][rowIndex] : 80;
+                    html += `<td class="col-${id}"><input type="number" class="score-${id}" value="${val}" min="0" max="100" oninput="updateChartAndTotals()"></td>`;
+                });
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+
+            const totalRow = document.getElementById('totalRow');
+            activeTestIds.forEach(id => {
+                const totalTd = document.createElement('td');
+                totalTd.className = `col-${id}`;
+                totalTd.innerHTML = `<span id="total-${id}">0</span>`;
+                totalRow.appendChild(totalTd);
+            });
+
+            updateChartAndTotals(false);
+
+        } catch (e) {
+            console.error("データの復元に失敗しました。", e);
+            initDefaultData();
+        }
+    }
+
+    function initDefaultData() {
+        const tbody = document.getElementById('tableBody');
+        const defaultSubjects = ["国語", "数学", "英語", "理科", "社会"];
+        
+        defaultSubjects.forEach(subj => {
+            const tr = document.createElement('tr');
+            tr.className = "subject-row";
+            tr.innerHTML = `<td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="${subj}"></div></td>`;
+            tbody.appendChild(tr);
+        });
+
+        addTestData(false);
+        addTestData(false);
+        
+        const score1Inputs = document.querySelectorAll('.score-1');
+        if(score1Inputs.length >= 5) score1Inputs[0].value = 85;
+        
+        const score2Vals = [70, 85, 75, 90, 65];
+        document.querySelectorAll('.score-2').forEach((el, i) => {
+            if(score2Vals[i] !== undefined) el.value = score2Vals[i];
+        });
+
+        updateChartAndTotals(true);
+    }
+
+    function addTestData(shouldSave = true) {
         testCount++;
         const currentId = testCount;
         activeTestIds.push(currentId);
-        const color = colorPalette[(activeTestIds.length - 1) % colorPalette.length];
 
         const headerRow = document.getElementById('headerRow');
         const th = document.createElement('th');
@@ -212,54 +375,38 @@
         totalTd.innerHTML = `<span id="total-${currentId}">0</span>`;
         totalRow.appendChild(totalTd);
 
-        radarChart.data.datasets.push({
-            label: `テスト${currentId}`,
-            data: [],
-            backgroundColor: color.bg,
-            borderColor: color.border,
-            borderWidth: 2,
-            id: currentId
-        });
-
-        updateChartAndTotals();
+        updateChartAndTotals(shouldSave);
     }
 
-    // 新しい教科（行）を追加する関数
     function addSubjectRow() {
         const tbody = document.getElementById('tableBody');
         const tr = document.createElement('tr');
         tr.className = "subject-row";
 
-        // 教科名入力セル
         let html = `<td><div class="subject-cell"><button class="btn-sub-delete" onclick="deleteSubjectRow(this)">✖</button><input type="text" class="subject" value="新教科"></div></td>`;
         
-        // 現在存在するテストの数だけ、点数入力セルを作る
         activeTestIds.forEach(id => {
             html += `<td class="col-${id}"><input type="number" class="score-${id}" value="80" min="0" max="100" oninput="updateChartAndTotals()"></td>`;
         });
 
         tr.innerHTML = html;
         tbody.appendChild(tr);
-        updateChartAndTotals();
+        updateChartAndTotals(true);
     }
 
-    // 教科（行）を削除する関数
     function deleteSubjectRow(button) {
         const row = button.closest('tr');
         row.remove();
-        updateChartAndTotals();
+        updateChartAndTotals(true);
     }
 
-    // 列（テスト）を削除する関数
     function deleteColumn(id) {
         document.querySelectorAll(`.col-${id}`).forEach(el => el.remove());
-        radarChart.data.datasets = radarChart.data.datasets.filter(ds => ds.id !== id);
         activeTestIds = activeTestIds.filter(testId => testId !== id);
-        updateChartAndTotals();
+        updateChartAndTotals(true);
     }
 
-    // 全体の更新処理
-    function updateChartAndTotals() {
+    function updateChartAndTotals(shouldSave = true) {
         const subjectInputs = document.querySelectorAll('.subject');
         const subjects = [];
         subjectInputs.forEach(input => {
@@ -267,12 +414,11 @@
         });
         radarChart.data.labels = subjects;
 
-        radarChart.data.datasets.forEach(dataset => {
-            const id = dataset.id;
+        radarChart.data.datasets = [];
+        activeTestIds.forEach((id, index) => {
+            const color = colorPalette[index % colorPalette.length];
             const titleInput = document.querySelector(`#headerRow .col-${id} .test-title`);
-            if (titleInput) {
-                dataset.label = titleInput.value || `テスト${id}`;
-            }
+            const labelStr = titleInput ? titleInput.value : `テスト${id}`;
 
             const scoreInputs = document.querySelectorAll(`.score-${id}`);
             const scores = [];
@@ -284,7 +430,14 @@
                 total += val;
             });
 
-            dataset.data = scores;
+            radarChart.data.datasets.push({
+                label: labelStr,
+                data: scores,
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 2,
+                id: id
+            });
 
             const totalSpan = document.getElementById(`total-${id}`);
             if (totalSpan) {
@@ -293,29 +446,19 @@
         });
 
         radarChart.update();
+
+        if (shouldSave) {
+            saveToLocalStorage();
+        }
     }
 
-    // 教科名入力時のリアルタイム反映
     document.getElementById('tableBody').addEventListener('input', (e) => {
         if (e.target.classList.contains('subject')) {
-            updateChartAndTotals();
+            updateChartAndTotals(true);
         }
     });
 
-    // 初期データ生成
-    addTestData();
-    addTestData();
-    
-    // サンプルの点数を少しバラけさせる
-    const score1Inputs = document.querySelectorAll('.score-1');
-    if(score1Inputs.length >= 5) score1Inputs[0].value = 85;
-    
-    const score2Vals = [70, 85, 75, 90, 65];
-    document.querySelectorAll('.score-2').forEach((el, i) => {
-        if(score2Vals[i] !== undefined) el.value = score2Vals[i];
-    });
-
-    updateChartAndTotals();
+    window.addEventListener('DOMContentLoaded', loadFromLocalStorage);
 </script>
 
 </body>
